@@ -1,0 +1,14 @@
+As the project, I suggest verifying Order Maintenance / Skip Lists with Dafny. For this, consider OrderSet with following operations:
+- s.addBefore(x, y): inserts x before y
+- s.addAfter(x, y): inserts x after y
+- s.add(x): inserts x at an arbitrary position, e.g. after initialization (not needed if the first element is provided at initialization)
+- s.element(x) returns true if x is an element of s
+- s.before(x, y) returns true if x comes before y
+- s.append(t) adds all elements of order set t after all elements of s
+- s.prepend(t): adds all elements of order set t before all elements of s
+- s.remove(x): removes element x
+The specification should be in terms of sequences, that is, an order set is a sequence with unique elements. The implementation should use the Order Maintenance data structure. The task is to verify the correctness of the implementation. Bin can provide papers on the Order Maintenance data structure.
+
+ 
+
+The outcome should be the Dafny specification and implementation as well as the design rationale, discussion of alternatives, some testing of efficiency, and references. The format can be as you like, e.g. self-contained Jupyer notebook, the source code with all of this added as comments, or the slides that you use for the presentation.
