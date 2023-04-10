@@ -44,9 +44,9 @@ module Collections {
             ensures exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
             modifies omDS
 
-        // method element(x: int) returns (exist: bool)
-        //     // At some position, if x exists then return true otherwise false
-        //     ensures exists i :: 0 <= i < |omDsSeq| && ((omDsSeq[i] == x && exist == true) || (omDsSeq[i] != x && exist == false))
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == false || ((exists i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == x)) && exist == true)
 
         // method before(x: int, y: int) returns (isBefore: bool)
         //     // Checks x and y are different values
@@ -78,14 +78,14 @@ module Collections {
     }
 
     class OMDataStruct extends OMDataStructTrait {
-        var randomNumber: int;
+        var randomNumberGlobal: int;
 
         constructor (maxCap: int)
             requires maxCap >= 0
         {
             new;
             maxCapacity := maxCap;
-            randomNumber := 1;
+            randomNumberGlobal := 1;
             // Temporary to test. Remove below.
             maxCapacity := 16;
             // TODO: Restrict max capacity to N
@@ -246,28 +246,82 @@ module Collections {
             addValAfterIndex(yIndex, x, xLabel);
         }
 
-        // method add(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue != x
-        //     modifies omDS
-        // {
-        //     var randomNumber: int := if omDS.Length == 0 then 0 else (randomNumber % omDS.Length) - 1;
-        //     var yIndex: int := randomNumber;
-        //     var xLabel: int := 0;
-        //     if(yIndex == omDS.Length-1) {
-        //         xLabel := (omDS[yIndex].omLabel + (omDS.Length * omDS.Length)) / 2;
-        //     } else {
-        //         xLabel := (omDS[yIndex].omLabel + omDS[yIndex + 1].omLabel) / 2;
-        //     }
-        //     randomNumber := randomNumber + 1;
+        method addValAtIndex(yIndex: int, x: int, xLabel: int)
+            requires 0 <= yIndex < omDS.Length
+            modifies omDS
+        {
+            var index: int := yIndex;
+
+            var yNode: Node? := omDS[index];
+            omDS[index] := new Node(xLabel, x);
+            index := index + 1;
+
+            // Can't assert below. Should be a limitation of Dafny
+            // assert omDS[yIndex].omValue == x;
+
+            while(yNode != null && index < omDS.Length)
+                invariant yIndex+1 <= index <= omDS.Length
+                invariant forall i :: yIndex+1 <= i < index ==> omDS[i] != null
+                decreases omDS.Length - index
+            {
+                var yNodeNext := omDS[index];
+                omDS[index] := yNode;
+                if(yNodeNext == null) {
+                    break;
+                } else {
+                    yNode := yNodeNext;
+                }
+
+                index := index + 1;
+            }
+
+            // Can't assert below. Should be a limitation of Dafny
+            // assert exists i :: 0 <= i < omDS.Length ==> omDS[i] != null && omDS[i].omValue == x;
+        }
+
+        method add(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue != x
+            modifies omDS
+        {
+            var randomNumber: int := 0;
+            randomNumber := if omDS.Length != 0 then (randomNumberGlobal + randomNumber) % omDS.Length else 0;
+            assert 0 <= randomNumber < omDS.Length;
+            var yIndex: int := randomNumber;
+            var xLabel: int;
+            if(omDS.Length == 0) {
+                xLabel := 1; // Relabelling should be triggered in the next element addition
+            } else if(yIndex == omDS.Length-1) {
+                xLabel := (omDS[yIndex].omLabel + (omDS.Length * omDS.Length)) / 2;
+            } else {
+                xLabel := (omDS[yIndex].omLabel + omDS[yIndex + 1].omLabel) / 2;
+            }
+            randomNumber := randomNumber + 1;
             
-        //     addValBeforeIndex(yIndex, x, xLabel);
-        // }
+            addValAtIndex(yIndex, x, xLabel);
+        }
 
-        // method element(x: int) returns (exist: bool)
-        // {
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == false || ((exists i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue == x)) && exist == true)
+        {
+            exist := false;
+            var index: int := 0;
+            while(index < omDS.Length && omDS[index] != null)
+                invariant 0 <= index <= omDS.Length
+                invariant forall i :: 0 <= i < index ==> omDS[i] != null && omDS[i].omValue != x
+                decreases omDS.Length - index
+            {
+                if(omDS[index].omValue == x) {
+                    exist := true;
+                    break;
+                }
 
-        // }
+                index := index + 1;
+            }
+
+            assert if exist == true then omDS[index].omValue == x else index == omDS.Length || omDS[index] == null;
+        }
 
         // method before(x: int, y: int) returns (isBefore: bool)
         // {
