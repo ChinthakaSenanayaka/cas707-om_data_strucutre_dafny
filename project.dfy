@@ -56,7 +56,7 @@ module Collections {
             // Check y exists in DS
             requires exists j :: 0 <= j < |omDsSeq| && omDsSeq[j] != null && omDsSeq[j].omValue == y
             // If x's position is less than y's position then return true otherwise false
-            ensures exists i,j :: 0 <= i < j < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[j] != null) && ((omDsSeq[i].omValue == x && omDsSeq[j].omValue == y && isBefore == true) || (omDsSeq[i].omValue == y && omDsSeq[j].omValue == x && isBefore == false))
+            ensures exists i,j :: 0 <= i < j < |omDsSeq| && ((((omDsSeq[i] != null && omDsSeq[i].omValue == x) && (omDsSeq[j] != null && omDsSeq[j].omValue == y)) && isBefore == true) || isBefore == false)
 
         // method append(x: int)
         //     // Check x doesn't exist in DS
@@ -331,7 +331,7 @@ module Collections {
             // Check y exists in DS
             requires exists j :: 0 <= j < omDS.Length && omDS[j] != null && omDS[j].omValue == y
             // If x's position is less than y's position then return true otherwise false
-            ensures exists i,j :: 0 <= i < j < omDS.Length && (((omDS[i] != null && omDS[i].omValue == x) && (omDS[j] != null && omDS[j].omValue == y) && isBefore == true) || isBefore == false)
+            ensures exists i,j :: 0 <= i < j < omDS.Length && ((((omDS[i] != null && omDS[i].omValue == x) && (omDS[j] != null && omDS[j].omValue == y)) && isBefore == true) || isBefore == false)
         {
             isBefore := false;
             var index: int := 0;
