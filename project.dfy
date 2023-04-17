@@ -58,11 +58,12 @@ module Collections {
             // If x's position is less than y's position then return true otherwise false
             ensures exists i,j :: 0 <= i < j < |omDsSeq| && ((((omDsSeq[i] != null && omDsSeq[i].omValue == x) && (omDsSeq[j] != null && omDsSeq[j].omValue == y)) && isBefore == true) || isBefore == false)
 
-        // method append(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != x
-        //     // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
-        //     ensures ((|omDsSeq| == 1 && omDsSeq[0] == x) || (|omDsSeq| > 1 && omDsSeq[|omDsSeq|-1] == x))
+        method append(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue != x)
+            // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
+            ensures ((|omDsSeq| == 1 && (omDsSeq[0] != null && omDsSeq[0].omValue == x)) || (|omDsSeq| > 1 && (exists i :: 0 <= i < |omDsSeq|-1 && ((omDsSeq[i] != null && omDsSeq[i+1] == null) && omDsSeq[i].omValue == x))))
+            modifies omDS
 
         // method prepend(x: int)
         //     // Check x doesn't exist in DS
@@ -70,11 +71,12 @@ module Collections {
         //     // Check x is at the start of the DS always
         //     ensures omDsSeq[0] == x
 
-        // method remove(x: int)
-        //     // Check x exists in DS
-        //     requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] == x
-        //     // Check x doesn't exist in DS
-        //     ensures forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != x
+        method remove(x: int)
+            // Check x exists in DS
+            requires exists i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == x)
+            // Check x doesn't exist in DS
+            ensures forall i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue != x)
+            modifies omDS
     }
 
     class OMDataStruct extends OMDataStructTrait {
@@ -90,6 +92,8 @@ module Collections {
             maxCapacity := 16;
             // TODO: Restrict max capacity to N
             // TODO: label capacity - N^2
+            // Minor scenarios are not covered since they can't be added within time limit. E.g.
+            //      1. Major index removed then addBefore/addAfter/add will not insert to major indices.
             // Insert before 0 triggers relabeling. Thus, not covered in initial version.
             // [0, 4, 8, 12] - labels
             // [11, 46, 30, 4] - values
@@ -370,6 +374,91 @@ module Collections {
             }
 
             assert if isBefore == true then xIndex < yIndex else xIndex >= yIndex;
+        }
+
+        method append(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue != x)
+            // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
+            ensures ((omDS.Length == 1 && (omDS[0] != null && omDS[0].omValue == x)) || (omDS.Length > 1 && (exists i :: 0 <= i < omDS.Length-1 && ((omDS[i] != null && omDS[i+1] == null) && omDS[i].omValue == x))))
+            modifies omDS
+        {
+            var index: int := 0;
+            while(index < omDS.Length && omDS[index] != null)
+                invariant 0 <= index <= omDS.Length
+                decreases omDS.Length - index
+            {
+                index := index + 1;
+            }
+
+            var numElements: int := index - 1;
+            var appendLabel: int := (numElements * numElements) - 1;
+            omDS[index] := new Node(appendLabel, x);
+        }
+
+        method relabel()
+            modifies omDS
+        {
+            var currentNumElements: int := 0;
+            var index: int := 0;
+            while(index < omDS.Length)
+                invariant 0 <= index <= omDS.Length
+                decreases omDS.Length - index
+            {
+                if(omDS[index] != null) {
+                    currentNumElements := currentNumElements + 1;
+                }
+
+                index := index + 1;
+            }
+
+            index := 0;
+            var newLabel: int, newPos := 0, 0;
+            while(index < omDS.Length)
+                invariant 0 <= index <= omDS.Length
+                decreases omDS.Length - index
+                modifies omDS
+            {
+                if(omDS[index] != null && newPos <= index) {
+                    omDS[newPos] := new Node(newLabel, omDS[index].omValue);
+
+                    newLabel := newLabel + currentNumElements;
+                    newPos := newPos + 1;
+                }
+
+                index := index + 1;
+            }
+        }
+
+        method remove(x: int)
+            // Check x exists in DS
+            requires exists i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue == x
+            // Check each value is unique
+            requires forall i :: 0 <= i < omDS.Length-1 && omDS[i] != null && (forall j :: i < j < omDS.Length && omDS[j] != null && omDS[i].omValue != omDS[j].omValue)
+            // Check x doesn't exist in DS
+            ensures forall i :: 0 <= i < omDS.Length && ((omDS[i] != null && omDS[i].omValue != x) || omDS[i] == null)
+            modifies omDS
+        {
+            var index: int, xIndex: int := 0, -1;
+            while(index < omDS.Length)
+                invariant 0 <= index <= omDS.Length
+                invariant forall i :: 0 <= i < index ==> (omDS[i] != null && omDS[i].omValue != x) || omDS[i] == null
+                decreases omDS.Length - index
+            {
+                // if condition can be moved to while condition where all verification fails.
+                if(omDS[index] != null && omDS[index].omValue == x) {
+                    break;
+                }
+
+                index := index + 1;
+            }
+            assert omDS[index].omValue == x;
+
+            omDS[index] := null;
+            // Should be relabled since we have assumed all the elements are in the 
+            // starting half of the array then null
+            // (can be either empty or full array too)
+            relabel();
         }
     }
     
