@@ -73,9 +73,11 @@ module Collections {
 
         method remove(x: int)
             // Check x exists in DS
-            requires exists i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == x)
+            requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
+            // Check each value is unique
+            requires forall i :: 0 <= i < |omDsSeq|-1 && omDsSeq[i] != null && (forall j :: i < j < |omDsSeq| && omDsSeq[j] != null && omDsSeq[i].omValue != omDsSeq[j].omValue)
             // Check x doesn't exist in DS
-            ensures forall i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue != x)
+            ensures forall i :: 0 <= i < |omDsSeq| && ((omDsSeq[i] != null && omDsSeq[i].omValue != x) || omDsSeq[i] == null)
             modifies omDS
     }
 
