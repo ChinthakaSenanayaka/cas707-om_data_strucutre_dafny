@@ -115,21 +115,22 @@ module Collections {
             omDS[2] := node2;
             omDS[3] := node3;
 
-            omDsSeq := computerOmDsSeq(omDS, omDS.Length-1);
+            omDsSeq := computeOmDsSeq(omDS, omDS.Length-1);
         }
 
-        function computerOmDsSeq(omDS: array<Node?>, index: nat): seq<Node?>
+        function computeOmDsSeq(omDS: array<Node?>, index: nat): seq<Node?>
             requires 0 <= index < omDS.Length
             reads omDS
         {
-            if index == 0 then [omDS[0]] else computerOmDsSeq(omDS, index-1) + [omDS[index]]
+            if index == 0 then [omDS[0]] else computeOmDsSeq(omDS, index-1) + [omDS[index]]
         }
 
         // Will be used till a memory pointer manupulation way is found.
         method findIndex(x: int) returns (index: int)
             // Check y exists in the array
-            requires exists i :: 0 <= i < omDS.Length && omDS[i] != null && x == omDS[i].omValue
+            requires exists i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue == x
             ensures 0 <= index < omDS.Length
+            ensures omDS[index] != null && omDS[index].omValue == x
         {
             index := 0;
             while(index < omDS.Length)
@@ -143,6 +144,27 @@ module Collections {
                 }
 
                 index := index + 1;
+            }
+        }
+
+        method findIndexUnknownVal(x: int) returns (index: int)
+            ensures -1 <= index < omDS.Length
+            ensures index == -1 || ((exists i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue == x)) && index >= 0)
+        {
+            var indexInner: int := 0;
+            index := -1; // not found is -1
+            while(indexInner < omDS.Length)
+                // Swapping 2 invariants give an error
+                invariant 0 <= indexInner <= omDS.Length
+                invariant forall i :: 0 <= i < indexInner ==> omDS[i] == null || (omDS[i] != null && omDS[i].omValue != x)
+                decreases omDS.Length - indexInner
+            {
+                if(omDS[indexInner] != null && omDS[indexInner].omValue == x) {
+                    index := indexInner;
+                    break;
+                }
+
+                indexInner := indexInner + 1;
             }
         }
 
@@ -316,22 +338,12 @@ module Collections {
             // At some position, if x exists then return true otherwise false
             ensures exist == false || ((exists i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue == x)) && exist == true)
         {
-            exist := false;
-            var index: int := 0;
-            while(index < omDS.Length && omDS[index] != null)
-                invariant 0 <= index <= omDS.Length
-                invariant forall i :: 0 <= i < index ==> omDS[i] != null && omDS[i].omValue != x
-                decreases omDS.Length - index
-            {
-                if(omDS[index].omValue == x) {
-                    exist := true;
-                    break;
-                }
-
-                index := index + 1;
+            var index: int := findIndexUnknownVal(x);
+            if(index >= 0) {
+                exist := true;
+            } else {
+                exist := false;
             }
-
-            assert if exist == true then omDS[index].omValue == x else index == omDS.Length || omDS[index] == null;
         }
 
         method before(x: int, y: int) returns (isBefore: bool)
@@ -344,43 +356,14 @@ module Collections {
             // If x's position is less than y's position then return true otherwise false
             ensures exists i,j :: 0 <= i < j < omDS.Length && ((((omDS[i] != null && omDS[i].omValue == x) && (omDS[j] != null && omDS[j].omValue == y)) && isBefore == true) || isBefore == false)
         {
-            isBefore := false;
-            var index: int := 0;
-            var xIndex, yIndex := -1, -1;
-
-            while(index < omDS.Length && omDS[index] != null)
-                invariant 0 <= index <= omDS.Length
-                invariant forall i :: 0 <= i < index ==> omDS[i] != null && omDS[i].omValue != x
-                decreases omDS.Length - index
-            {
-                if(omDS[index].omValue == x) {
-                    xIndex := index;
-                    break;
-                }
-
-                index := index + 1;
-            }
-
-            ghost var xIndexPos: int := index;
-
-            while(index < omDS.Length && omDS[index] != null)
-                invariant xIndexPos <= index <= omDS.Length
-                invariant forall i :: xIndexPos <= i < index ==> omDS[i] != null && omDS[i].omValue != y
-                decreases omDS.Length - index
-            {
-                if(omDS[index].omValue == y) {
-                    yIndex := index;
-                    break;
-                }
-
-                index := index + 1;
-            }
+            var xIndex: int := findIndex(x);
+            var yIndex: int := findIndex(y);
 
             if(xIndex < yIndex) {
                 isBefore := true;
+            } else {
+                isBefore := false;
             }
-
-            assert if isBefore == true then xIndex < yIndex else xIndex >= yIndex;
         }
 
         method append(x: int)
@@ -414,21 +397,7 @@ module Collections {
             ensures omDS.Length > 0 && omDS[0] != null && omDS[0].omValue == x
             modifies omDS
         {
-            // Move all elements to the right by 1 position, add new element to the start
-            // then relabel
-            var index: int := 0;
-            var tempNode: Node? := omDS[0];
-            omDS[0] := new Node(0, x);
-            while(index < omDS.Length-1)
-                invariant 0 <= index <= omDS.Length-1
-                decreases omDS.Length-1 - index
-            {
-                var tempNodeInner: Node? := omDS[index+1];
-                omDS[index+1] := tempNode;
-                tempNode := tempNodeInner;
-
-                index := index + 1;
-            }
+            addValAtIndex(0, x, 0);
 
             relabel();
         }
@@ -436,6 +405,7 @@ module Collections {
         method relabel()
             modifies omDS
         {
+            // Get number of elements in the array
             var currentNumElements: int := 0;
             var index: int := 0;
             while(index < omDS.Length)
@@ -449,6 +419,7 @@ module Collections {
                 index := index + 1;
             }
 
+            // Relabel the elements in the array
             index := 0;
             var newLabel: int, newPos := 0, 0;
             while(index < omDS.Length)
@@ -476,20 +447,7 @@ module Collections {
             ensures forall i :: 0 <= i < omDS.Length && ((omDS[i] != null && omDS[i].omValue != x) || omDS[i] == null)
             modifies omDS
         {
-            var index: int, xIndex: int := 0, -1;
-            while(index < omDS.Length)
-                invariant 0 <= index <= omDS.Length
-                invariant forall i :: 0 <= i < index ==> (omDS[i] != null && omDS[i].omValue != x) || omDS[i] == null
-                decreases omDS.Length - index
-            {
-                // if condition can be moved to while condition where all verification fails.
-                if(omDS[index] != null && omDS[index].omValue == x) {
-                    break;
-                }
-
-                index := index + 1;
-            }
-            assert omDS[index].omValue == x;
+            var index: int := findIndex(x);
 
             omDS[index] := null;
             // Should be relabled since we have assumed all the elements are in the 
