@@ -26,7 +26,7 @@ module Collections {
             requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
             // Check x's position is less than y's position
             ensures exists i,j :: 0 <= i < j < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == x) && (omDsSeq[j] != null && omDsSeq[j].omValue == y)
-            modifies omDS, omDsSeq
+            modifies omDsSeq
 
         method addAfter(x: int, y: int)
             // Check y exists in DS
@@ -35,14 +35,14 @@ module Collections {
             requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
             // Check x's position is greater than y's position
             ensures exists i,j :: 0 <= i < j < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == y) && (omDsSeq[j] != null && omDsSeq[j].omValue == x)
-            modifies omDS
+            modifies omDsSeq
 
         method add(x: int)
             // Check x doesn't exist in DS
             requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
             // Check x exists random position in DS
             ensures exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
-            modifies omDS
+            modifies omDsSeq
 
         method element(x: int) returns (exist: bool)
             // At some position, if x exists then return true otherwise false
@@ -63,13 +63,18 @@ module Collections {
             requires forall i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue != x)
             // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
             ensures ((|omDsSeq| == 1 && (omDsSeq[0] != null && omDsSeq[0].omValue == x)) || (|omDsSeq| > 1 && (exists i :: 0 <= i < |omDsSeq|-1 && ((omDsSeq[i] != null && omDsSeq[i+1] == null) && omDsSeq[i].omValue == x))))
-            modifies omDS
+            modifies omDsSeq
 
-        // method prepend(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != x
-        //     // Check x is at the start of the DS always
-        //     ensures omDsSeq[0] == x
+        method prepend(x: int)
+            // At least 1 position should be empty
+            requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] == null
+            // Last element should be null
+            requires |omDsSeq| > 0 && omDsSeq[|omDsSeq|-1] == null
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
+            // Check x is at the start of the DS always
+            ensures |omDsSeq| > 0 && omDsSeq[0] != null && omDsSeq[0].omValue == x
+            modifies omDsSeq
 
         method remove(x: int)
             // Check x exists in DS
@@ -78,7 +83,7 @@ module Collections {
             requires forall i :: 0 <= i < |omDsSeq|-1 && omDsSeq[i] != null && (forall j :: i < j < |omDsSeq| && omDsSeq[j] != null && omDsSeq[i].omValue != omDsSeq[j].omValue)
             // Check x doesn't exist in DS
             ensures forall i :: 0 <= i < |omDsSeq| && ((omDsSeq[i] != null && omDsSeq[i].omValue != x) || omDsSeq[i] == null)
-            modifies omDS
+            modifies omDsSeq
     }
 
     class OMDataStruct extends OMDataStructTrait {
@@ -396,6 +401,36 @@ module Collections {
             var numElements: int := index - 1;
             var appendLabel: int := (numElements * numElements) - 1;
             omDS[index] := new Node(appendLabel, x);
+        }
+
+        method prepend(x: int)
+            // At least 1 position should be empty
+            requires exists i :: 0 <= i < omDS.Length && omDS[i] == null
+            // Last element should be null
+            requires omDS.Length > 0 && omDS[omDS.Length-1] == null
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue != x
+            // Check x is at the start of the DS always
+            ensures omDS.Length > 0 && omDS[0] != null && omDS[0].omValue == x
+            modifies omDS
+        {
+            // Move all elements to the right by 1 position, add new element to the start
+            // then relabel
+            var index: int := 0;
+            var tempNode: Node? := omDS[0];
+            omDS[0] := new Node(0, x);
+            while(index < omDS.Length-1)
+                invariant 0 <= index <= omDS.Length-1
+                decreases omDS.Length-1 - index
+            {
+                var tempNodeInner: Node? := omDS[index+1];
+                omDS[index+1] := tempNode;
+                tempNode := tempNodeInner;
+
+                index := index + 1;
+            }
+
+            relabel();
         }
 
         method relabel()
