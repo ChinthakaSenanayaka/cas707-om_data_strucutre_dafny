@@ -75,27 +75,23 @@ module Collections {
             requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
             // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
             ensures (|omDsSeq| == 1 && omDsSeq[0].omValue == x) || (|omDsSeq| > 1 && omDsSeq[|omDsSeq|-1].omValue == x)
-            modifies omDS
+            modifies omDS, omDsSeq
 
-        // method prepend(x: int)
-        //     // At least 1 position should be empty
-        //     requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] == null
-        //     // Last element should be null
-        //     requires |omDsSeq| > 0 && omDsSeq[|omDsSeq|-1] == null
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
-        //     // Check x is at the start of the DS always
-        //     ensures |omDsSeq| > 0 && omDsSeq[0] != null && omDsSeq[0].omValue == x
-        //     modifies omDsSeq
+        method prepend(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
+            // Check x is at the start of the DS always
+            ensures |omDsSeq| > 0 && omDsSeq[0].omValue == x
+            modifies omDS, omDsSeq
 
-        // method remove(x: int)
-        //     // Check x exists in DS
-        //     requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
-        //     // Check each value is unique
-        //     requires forall i :: 0 <= i < |omDsSeq|-1 && omDsSeq[i] != null && (forall j :: i < j < |omDsSeq| && omDsSeq[j] != null && omDsSeq[i].omValue != omDsSeq[j].omValue)
-        //     // Check x doesn't exist in DS
-        //     ensures forall i :: 0 <= i < |omDsSeq| && ((omDsSeq[i] != null && omDsSeq[i].omValue != x) || omDsSeq[i] == null)
-        //     modifies omDsSeq
+        method remove(x: int)
+            // Check x exists in DS
+            requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x
+            // Check each value is unique
+            requires forall i :: 0 <= i < |omDsSeq|-1 && (forall j :: i < j < |omDsSeq| && omDsSeq[i].omValue != omDsSeq[j].omValue)
+            // Check x doesn't exist in DS
+            ensures forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
+            modifies omDS, omDsSeq
     }
 
     class OMDataStruct extends OMDataStructTrait {
@@ -278,7 +274,7 @@ module Collections {
         {
             var iNode: Node? := list;
             while(iNode != null)
-                invariant forall i :: 0 <= i < |omDsSeq| ==> iNode != null && iNode.index == i
+                invariant iNode != null || iNode == null
             {
                 if(iNode.index == index) {
                     node := iNode;
@@ -428,50 +424,91 @@ module Collections {
             }
         }
 
-        // method prepend(x: int)
-        //     // At least 1 position should be empty
-        //     requires exists i :: 0 <= i < omDS.Length && omDS[i] == null
-        //     // Last element should be null
-        //     requires omDS.Length > 0 && omDS[omDS.Length-1] == null
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue != x
-        //     // Check x is at the start of the DS always
-        //     ensures omDS.Length > 0 && omDS[0] != null && omDS[0].omValue == x
-        //     modifies omDS
-        // {
-        //     addValAtIndex(0, x, 0);
+        method prepend(x: int)
+            // Check x is at the start of the DS always
+            ensures |omDsSeq| > 0 && omDsSeq[0].omValue == x
+            // ensures getSizeFunc(omDS) > 0 && omDS[0].omValue == x
+            modifies omDS, omDsSeq, omDS.previous
+        {
+            if(omDS != null) {
+                var xNode: Node := addValAtIndex(omDS, 0, x);
 
-        //     relabel();
-        // }
+                omDsSeq := [xNode] + omDsSeq;
+            } else {
+                var xNode: Node := new Node(0, x, 0);
+                omDS := xNode;
 
-        // method remove(x: int)
-        //     // Check x exists in DS
-        //     requires exists i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue == x
-        //     // Check each value is unique
-        //     requires forall i :: 0 <= i < omDS.Length-1 && omDS[i] != null && (forall j :: i < j < omDS.Length && omDS[j] != null && omDS[i].omValue != omDS[j].omValue)
-        //     // Check x doesn't exist in DS
-        //     ensures forall i :: 0 <= i < omDS.Length && ((omDS[i] != null && omDS[i].omValue != x) || omDS[i] == null)
-        //     modifies omDS
-        // {
-        //     var index: int := findIndex(x);
+                omDsSeq := [xNode];
+            }
 
-        //     omDS[index] := null;
-        //     // Should be relabled since we have assumed all the elements are in the 
-        //     // starting half of the array then null
-        //     // (can be either empty or full array too)
-        //     relabel();
-        // }
+            // TODO: relabel is needed, do it later
+            // relabel();
+        }
+
+        method remove(x: int)
+            // Check x doesn't exist in DS
+            ensures forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
+            modifies omDS, omDsSeq
+        {
+            var iNode: Node? := omDS;
+            while(iNode != null)
+                invariant iNode != null || iNode == null
+                modifies iNode.next, iNode.previous
+            {
+                if(iNode.omValue == x) {
+                    
+                    var nextNode: Node? := iNode.next;
+                    var prevNode: Node? := iNode.previous;
+
+                    if(prevNode != null) {
+                        prevNode.next := nextNode;
+
+                        if(nextNode != null) {
+                            nextNode.previous := prevNode;
+                        }
+                    }
+                    omDsSeq := omDsSeq[..iNode.index] + omDsSeq[iNode.index+1..];
+
+                    break;
+                }
+
+                iNode := iNode.next;
+            }
+
+            // TODO: should trigger relabel
+            // relabel();
+        }
     }
     
 }
 
 module Runner {
-    // import c = Collections
+    import c = Collections
 
-    // method main()
-    // {
-    //     var omDataStruct := new c.OMDataStruct(16);
+    method main()
+    {
+        var omDataStruct := new c.OMDataStruct(16);
 
-    //     omDataStruct.addBefore(8, 30);
-    // }
+        // [0, 4, 8, 12] - labels
+        // [11, 46, 30, 4] - values
+        var node0 := new c.Node(0, 11, 0);
+        var node1 := new c.Node(4, 46, 1);
+        var node2 := new c.Node(8, 30, 2);
+        var node3 := new c.Node(12, 4, 3);
+
+        omDataStruct.omDS := node0;
+        node0.next := node1;
+        node1.next := node2;
+        node2.next := node3;
+        node3.next := null;
+
+        node3.previous := node2;
+        node2.previous := node1;
+        node1.previous := node0;
+        node0.previous := null;
+
+        omDataStruct.omDsSeq := [node0, node1, node2, node3];
+
+        omDataStruct.addBefore(8, node2);
+    }
 }
