@@ -335,12 +335,12 @@ module Collections {
         }
 
         method getNodeForValue(list: Node?, x: int) returns (node: Node?)
-            ensures node == null || ((exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x) && exist == true)
+            ensures node == null || (exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x && node == omDsSeq[i])
         {
             node := null;
             var iNode: Node? := list;
             while(iNode != null)
-                invariant forall i :: 0 <= i < |omDsSeq| ==> iNode != null && iNode.index == i && 
+                invariant forall i :: 0 <= i < |omDsSeq| ==> iNode != null && iNode.index == i
             {
                 if(iNode.omValue == x) {
                     node := iNode;
