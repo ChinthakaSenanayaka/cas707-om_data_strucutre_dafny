@@ -48,16 +48,16 @@ module Collections {
             ensures exists i,j :: 0 <= i < j < |omDsSeq| && omDsSeq[i].omValue == yNode.omValue && omDsSeq[j].omValue == x
             modifies omDS, omDsSeq, yNode, yNode.next
 
-        // method add(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue != x
-        //     // Check x exists random position in DS
-        //     ensures exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
-        //     modifies omDsSeq
+        method add(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
+            // Check x exists random position in DS
+            ensures exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x
+            modifies omDS
 
-        // method element(x: int) returns (exist: bool)
-        //     // At some position, if x exists then return true otherwise false
-        //     ensures exist == false || ((exists i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue == x)) && exist == true)
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == false || ((exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x) && exist == true)
 
         // method before(x: int, y: int) returns (isBefore: bool)
         //     // Checks x and y are different values
@@ -245,72 +245,111 @@ module Collections {
             omDsSeq := omDsSeq[..yNode.index+1] + [xNode] + omDsSeq[yNode.index+1..];
         }
 
-        // method addValAtIndex(yIndex: int, x: int, xLabel: int)
-        //     requires 0 <= yIndex < omDS.Length
-        //     modifies omDS
-        // {
-        //     var index: int := yIndex;
+        method getSize(list: Node?) returns (size: int)
+        {
+            size := 0;
+            var node: Node? := list;
+            while(node != null)
+            {
+                size := size + 1;
+                node := node.next;
+            }
+        }
 
-        //     var yNode: Node? := omDS[index];
-        //     omDS[index] := new Node(xLabel, x);
-        //     index := index + 1;
+        method getNodeAtIndex(list: Node?, index: int) returns (node: Node)
+        {
+            var iNode: Node? := list;
+            while(iNode != null)
+                invariant forall i :: 0 <= i < |omDsSeq| ==> iNode != null && iNode.index == i
+            {
+                if(iNode.index == index) {
+                    node := iNode;
+                    break;
+                }
 
-        //     // Can't assert below. Should be a limitation of Dafny
-        //     // assert omDS[yIndex].omValue == x;
+                iNode := iNode.next;
+            }
+        }
 
-        //     while(yNode != null && index < omDS.Length)
-        //         invariant yIndex+1 <= index <= omDS.Length
-        //         invariant forall i :: yIndex+1 <= i < index ==> omDS[i] != null
-        //         decreases omDS.Length - index
-        //     {
-        //         var yNodeNext := omDS[index];
-        //         omDS[index] := yNode;
-        //         if(yNodeNext == null) {
-        //             break;
-        //         } else {
-        //             yNode := yNodeNext;
-        //         }
+        method add(x: int)
+            // Check x exists random position in DS
+            ensures exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x
+            modifies omDS
+        {
+            var randomIndex: int := 0;
+            var listSize: int := getSize(omDS);
+            randomIndex := if listSize != 0 then (randomNumberGlobal + randomIndex) % listSize else 0;
 
-        //         index := index + 1;
-        //     }
+            var yIndex: int := randomIndex;
+            var yNode: Node;
+            var xLabel: int;
+            var xNode: Node;
+            if(listSize == 0) {
+                xLabel := 1; // Relabelling should be triggered in the next element addition
+                xNode := new Node(xLabel, x, 0);
+                omDS := xNode;
 
-        //     // Can't assert below. Should be a limitation of Dafny
-        //     // assert exists i :: 0 <= i < omDS.Length ==> omDS[i] != null && omDS[i].omValue == x;
-        // }
+            } else if(yIndex == listSize-1) {
+                yNode := getNodeAtIndex(omDS, yIndex);
+                xLabel := (yNode.omLabel + (listSize * listSize) - 1) / 2;
+                xNode := addValAtIndex(yNode, xLabel, x);
 
-        // method add(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue != x
-        //     modifies omDS
-        // {
-        //     var randomNumber: int := 0;
-        //     randomNumber := if omDS.Length != 0 then (randomNumberGlobal + randomNumber) % omDS.Length else 0;
-        //     assert 0 <= randomNumber < omDS.Length;
-        //     var yIndex: int := randomNumber;
-        //     var xLabel: int;
-        //     if(omDS.Length == 0) {
-        //         xLabel := 1; // Relabelling should be triggered in the next element addition
-        //     } else if(yIndex == omDS.Length-1) {
-        //         xLabel := (omDS[yIndex].omLabel + (omDS.Length * omDS.Length)) / 2;
-        //     } else {
-        //         xLabel := (omDS[yIndex].omLabel + omDS[yIndex + 1].omLabel) / 2;
-        //     }
-        //     randomNumber := randomNumber + 1;
-            
-        //     addValAtIndex(yIndex, x, xLabel);
-        // }
+            } else {
+                yNode := getNodeAtIndex(omDS, yIndex);
+                var yNodeNext: Node := getNodeAtIndex(omDS, yIndex + 1);
+                xLabel := (yNode.omLabel + yNodeNext.omLabel) / 2;
+                xNode := addValAtIndex(yNode, xLabel, x);
+            }
 
-        // method element(x: int) returns (exist: bool)
-        //     // At some position, if x exists then return true otherwise false
-        //     ensures exist == false || ((exists i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue == x)) && exist == true)
-        // {
-        //     var index: int := findIndexUnknownVal(x);
-        //     if(index >= 0) {
-        //         exist := true;
-        //     } else {
-        //         exist := false;
-        //     }
-        // }
+            omDsSeq := omDsSeq[..yNode.index+1] + [xNode] + omDsSeq[yNode.index+1..];
+        }
+
+        method addValAtIndex(yNode: Node, xLabel: int, x: int) returns (xNode: Node)
+            modifies yNode, yNode.next
+        {
+            xNode := new Node(xLabel, x, yNode.index + 1);
+            if(yNode.next != null) {
+
+                var nextNode: Node := yNode.next;
+                yNode.next := xNode;
+                xNode.previous := yNode;
+                xNode.next := nextNode;
+                nextNode.previous := xNode;
+            } else {
+                
+                yNode.next := xNode;
+                xNode.previous := yNode;
+            }
+        }
+
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == false || ((exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x) && exist == true)
+        {
+            var node: Node? := getNodeForValue(omDS, x);
+            if(node != null) {
+                exist := true;
+            } else {
+                exist := false;
+            }
+        }
+
+        method getNodeForValue(list: Node?, x: int) returns (node: Node?)
+            ensures node == null || ((exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x) && exist == true)
+        {
+            node := null;
+            var iNode: Node? := list;
+            while(iNode != null)
+                invariant forall i :: 0 <= i < |omDsSeq| ==> iNode != null && iNode.index == i && 
+            {
+                if(iNode.omValue == x) {
+                    node := iNode;
+                    break;
+                }
+
+                iNode := iNode.next;
+            }
+        }
 
         // method before(x: int, y: int) returns (isBefore: bool)
         //     // Checks x and y are different values
