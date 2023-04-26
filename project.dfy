@@ -27,6 +27,7 @@ module Collections {
     trait OMDataStructTrait {
         var maxCapacity: int;
         var omDS: Node?;
+        // var tail: Node?;
 
         ghost var omDsSeq: seq<Node>;
 
@@ -59,22 +60,22 @@ module Collections {
             // At some position, if x exists then return true otherwise false
             ensures exist == false || ((exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x) && exist == true)
 
-        // method before(x: int, y: int) returns (isBefore: bool)
-        //     // Checks x and y are different values
-        //     requires x != y
-        //     // Check x exists in DS
-        //     requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i] != null && omDsSeq[i].omValue == x
-        //     // Check y exists in DS
-        //     requires exists j :: 0 <= j < |omDsSeq| && omDsSeq[j] != null && omDsSeq[j].omValue == y
-        //     // If x's position is less than y's position then return true otherwise false
-        //     ensures exists i,j :: 0 <= i < j < |omDsSeq| && ((((omDsSeq[i] != null && omDsSeq[i].omValue == x) && (omDsSeq[j] != null && omDsSeq[j].omValue == y)) && isBefore == true) || isBefore == false)
+        method before(x: int, y: int) returns (isBefore: bool)
+            // Checks x and y are different values
+            requires x != y
+            // Check x exists in DS
+            requires exists i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue == x
+            // Check y exists in DS
+            requires exists j :: 0 <= j < |omDsSeq| && omDsSeq[j].omValue == y
+            // If x's position is less than y's position then return true otherwise false
+            ensures exists i,j :: 0 <= i < j < |omDsSeq| && (((omDsSeq[i].omValue == x && omDsSeq[j].omValue == y) && isBefore == true) || isBefore == false)
 
-        // method append(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < |omDsSeq| && (omDsSeq[i] != null && omDsSeq[i].omValue != x)
-        //     // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
-        //     ensures ((|omDsSeq| == 1 && (omDsSeq[0] != null && omDsSeq[0].omValue == x)) || (|omDsSeq| > 1 && (exists i :: 0 <= i < |omDsSeq|-1 && ((omDsSeq[i] != null && omDsSeq[i+1] == null) && omDsSeq[i].omValue == x))))
-        //     modifies omDsSeq
+        method append(x: int)
+            // Check x doesn't exist in DS
+            requires forall i :: 0 <= i < |omDsSeq| && omDsSeq[i].omValue != x
+            // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
+            ensures (|omDsSeq| == 1 && omDsSeq[0].omValue == x) || (|omDsSeq| > 1 && omDsSeq[|omDsSeq|-1].omValue == x)
+            modifies omDS
 
         // method prepend(x: int)
         //     // At least 1 position should be empty
@@ -121,6 +122,7 @@ module Collections {
             var node3 := new Node(12, 4, 3);
 
             omDS := node0;
+            // tail := node3;
             node0.next := node1;
             node1.next := node2;
             node2.next := node3;
@@ -132,6 +134,7 @@ module Collections {
             node0.previous := null;
 
             omDsSeq := [node0, node1, node2, node3];
+            // omDsSeq := computeOmDsSeq(omDS);
         }
 
         method addBefore(x: int, yNode: Node)
@@ -172,6 +175,13 @@ module Collections {
 
             omDsSeq := omDsSeq[..yNode.index] + [xNode] + omDsSeq[yNode.index..];
         }
+
+        // function computeOmDsSeq(node: Node?): seq<Node?>
+        //     decreases node
+        //     reads node
+        // {
+        //     if node.next == null then [node] else [node] + computeOmDsSeq(node.next)
+        // }
 
         // method reIndex(omDS: Node?)
         //     modifies omDS
@@ -256,6 +266,14 @@ module Collections {
             }
         }
 
+        function getSizeFunc(node: Node?): int
+            reads node
+            // PROBLEM: there's no way to get the size of the linked list
+            // decreases omDsSeq[|omDsSeq|-1].index - node.index
+        {
+            if node == null then 0 else 1 + getSizeFunc(node.next)
+        }
+
         method getNodeAtIndex(list: Node?, index: int) returns (node: Node)
         {
             var iNode: Node? := list;
@@ -305,21 +323,24 @@ module Collections {
         }
 
         method addValAtIndex(yNode: Node, xLabel: int, x: int) returns (xNode: Node)
-            modifies yNode, yNode.next
+            modifies yNode, yNode.previous
         {
-            xNode := new Node(xLabel, x, yNode.index + 1);
-            if(yNode.next != null) {
+            xNode := new Node(xLabel, x, yNode.index);
+            if(yNode.previous != null) {
 
-                var nextNode: Node := yNode.next;
-                yNode.next := xNode;
-                xNode.previous := yNode;
-                xNode.next := nextNode;
-                nextNode.previous := xNode;
+                var prevNode: Node := yNode.previous;
+                yNode.previous := xNode;
+                xNode.next := yNode;
+                xNode.previous := prevNode;
+                prevNode.next := xNode;
             } else {
                 
-                yNode.next := xNode;
-                xNode.previous := yNode;
+                yNode.previous := xNode;
+                xNode.next := yNode;
             }
+
+            // TODO: should trigger relabel
+            // reIndex();
         }
 
         method element(x: int) returns (exist: bool)
@@ -351,45 +372,61 @@ module Collections {
             }
         }
 
-        // method before(x: int, y: int) returns (isBefore: bool)
-        //     // Checks x and y are different values
-        //     requires x != y
-        //     // Check x exists in DS
-        //     requires exists i :: 0 <= i < omDS.Length && omDS[i] != null && omDS[i].omValue == x
-        //     // Check y exists in DS
-        //     requires exists j :: 0 <= j < omDS.Length && omDS[j] != null && omDS[j].omValue == y
-        //     // If x's position is less than y's position then return true otherwise false
-        //     ensures exists i,j :: 0 <= i < j < omDS.Length && ((((omDS[i] != null && omDS[i].omValue == x) && (omDS[j] != null && omDS[j].omValue == y)) && isBefore == true) || isBefore == false)
-        // {
-        //     var xIndex: int := findIndex(x);
-        //     var yIndex: int := findIndex(y);
+        method before(x: int, y: int) returns (isBefore: bool)
+            // If x's position is less than y's position then return true otherwise false
+            ensures exists i,j :: 0 <= i < j < |omDsSeq| && (((omDsSeq[i].omValue == x && omDsSeq[j].omValue == y) && isBefore == true) || isBefore == false)
+        {
+            var xNode: Node? := getNodeForValue(omDS, x);
+            var yNode: Node? := getNodeForValue(omDS, y);
 
-        //     if(xIndex < yIndex) {
-        //         isBefore := true;
-        //     } else {
-        //         isBefore := false;
-        //     }
-        // }
+            if(xNode == null || yNode == null) {
+                isBefore := false;
+            } else if(xNode.index < yNode.index) {
+                isBefore := true;
+            } else {
+                isBefore := false;
+            }
+        }
 
-        // method append(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires forall i :: 0 <= i < omDS.Length && (omDS[i] != null && omDS[i].omValue != x)
-        //     // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
-        //     ensures ((omDS.Length == 1 && (omDS[0] != null && omDS[0].omValue == x)) || (omDS.Length > 1 && (exists i :: 0 <= i < omDS.Length-1 && ((omDS[i] != null && omDS[i+1] == null) && omDS[i].omValue == x))))
-        //     modifies omDS
-        // {
-        //     var index: int := 0;
-        //     while(index < omDS.Length && omDS[index] != null)
-        //         invariant 0 <= index <= omDS.Length
-        //         decreases omDS.Length - index
-        //     {
-        //         index := index + 1;
-        //     }
+        method append(x: int)
+            // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
+            ensures (|omDsSeq| == 1 && omDsSeq[0].omValue == x) || (|omDsSeq| > 1 && omDsSeq[|omDsSeq|-1].omValue == x)
+            modifies omDS
+        {
+            var node: Node? := omDS;
+            if(node == null) {
 
-        //     var numElements: int := index - 1;
-        //     var appendLabel: int := (numElements * numElements) - 1;
-        //     omDS[index] := new Node(appendLabel, x);
-        // }
+                var numElements: int := 1;
+                var appendLabel: int := ((numElements * numElements) - 1) / 2;
+                var appendNode: Node := new Node(appendLabel, x, numElements);
+                node.next := appendNode;
+
+                omDsSeq := [appendNode];
+            } else {
+
+                while(node != null)
+                    invariant node == null || node != null
+                    decreases (if node == null then 0 else (getSizeFunc(omDS) - node.index))
+                    modifies node, node.next
+                {
+                    if(node.next == null) {
+
+                        var numElements: int := node.index + 1;
+                        var appendLabel: int := (node.omLabel + (numElements * numElements) - 1) / 2;
+                        var appendNode: Node := new Node(appendLabel, x, numElements);
+                        node.next := appendNode;
+
+                        omDsSeq := omDsSeq + [appendNode];
+
+                        break;
+                    }
+                    node := node.next;
+                }
+
+                // TODO: relabel is needed, do it later
+                // relabel();
+            }
+        }
 
         // method prepend(x: int)
         //     // At least 1 position should be empty
