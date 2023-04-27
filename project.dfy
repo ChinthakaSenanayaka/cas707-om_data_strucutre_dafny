@@ -11,9 +11,9 @@ module Collections {
         var previous: Node?;
         var next: Node?;
 
-        var index: int;
+        ghost var index: int;
 
-        constructor (omLbl: int, omVal: int, idx: int)
+        constructor (omLbl: int, omVal: int, ghost idx: int)
             ensures omLabel == omLbl && omValue == omVal && index == idx
         {
             new;
@@ -25,7 +25,6 @@ module Collections {
     }
 
     trait OMDataStructTrait {
-        var maxCapacity: int;
         var omDS: Node?;
 
         ghost var omDsSeq: seq<int>;
@@ -38,9 +37,9 @@ module Collections {
             requires x !in omDsSeq
             requires oldOmDsSeq == omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x's position is less than y's position
-            ensures exists s0, s1 :: oldOmDsSeq == s0 + [yNode.omValue] + s1 && omDsSeq == s0 + [x, yNode.omValue] + s1
+            ensures exists fstSeq, scndSeq :: oldOmDsSeq == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [x, yNode.omValue] + scndSeq
             modifies yNode, yNode.previous, omDS
 
         method addAfter(x: int, yNode: Node)
@@ -50,61 +49,59 @@ module Collections {
             requires x !in omDsSeq
             requires oldOmDsSeq == omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x's position is greater than y's position
-            ensures exists s0, s1 :: oldOmDsSeq == s0 + [yNode.omValue] + s1 && omDsSeq == s0 + [x, yNode.omValue] + s1
-            modifies omDS, yNode, yNode.next
+            ensures exists fstSeq, scndSeq :: oldOmDsSeq == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [x, yNode.omValue] + scndSeq
 
         method add(x: int)
             // Check x doesn't exist in DS
             requires x !in omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x exists random position in DS
             ensures x in omDsSeq
-            modifies omDS
 
         method element(x: int) returns (exist: bool)
             // At some position, if x exists then return true otherwise false
             ensures exist == (x in omDsSeq)
 
-        method before(x: int, y: int) returns (isBefore: bool)
+        method before(xNode: Node, yNode: Node) returns (isBefore: bool)
             // Checks x and y are different values
-            requires x != y
+            requires xNode.omValue != yNode.omValue
             // Check x exists in DS
-            requires x in omDsSeq
+            requires xNode.omValue in omDsSeq
             // Check y exists in DS
-            requires y in omDsSeq
+            requires yNode.omValue in omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // If x's position is less than y's position then return true otherwise false
-            ensures exists s0, s1, s2 :: omDsSeq == s0 + [x] + s1 + [y] + s2
+            ensures exists fstSeq, midSeq, scndSeq :: omDsSeq == fstSeq + [xNode.omValue] + midSeq + [yNode.omValue] + scndSeq
 
-        method append(x: int)
+        method append(valSet: set<int>)
             // Check x doesn't exist in DS
-            requires x !in omDsSeq
+            requires exists val :: val in valSet && val !in omDsSeq
             requires oldOmDsSeq == omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // If DS size is 1 then x is at the start of DS or DS size is greater than 1 then x is at the end of the DS.
-            ensures exists s0, s1 :: omDsSeq == s0 + [x] + s1 && oldOmDsSeq == s0 + s1
+            ensures exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + scndSeq && oldOmDsSeq == fstSeq && val in scndSeq && val in valSet
 
-        method prepend(x: int)
+        method prepend(valSet: set<int>)
             // Check x doesn't exist in DS
-            requires x !in omDsSeq
+            requires exists val :: val in valSet && val !in omDsSeq
             requires oldOmDsSeq == omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x is at the start of the DS always
-            ensures exists s0, a :: oldOmDsSeq == [a] + s0 && omDsSeq == [x] + s0
+            ensures exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + scndSeq && oldOmDsSeq == scndSeq && val in fstSeq && val in valSet
 
-        method remove(x: int)
+        method remove(xNode: Node)
             // Check x exists in DS
-            requires x in omDsSeq
+            requires xNode.omValue in omDsSeq
             // Check each value is unique
-            requires exists s0, s1, a :: omDsSeq == s0 + [a] + s1 && a !in s0 + s1
+            requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x doesn't exist in DS
-            ensures x !in omDsSeq
+            ensures xNode.omValue !in omDsSeq
     }
 
     // class OMDataStruct extends OMDataStructTrait {
