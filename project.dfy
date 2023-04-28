@@ -112,6 +112,11 @@ module Collections {
             requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
             // Check x doesn't exist in DS
             ensures xNode.omValue !in omDsSeq
+
+        method getXNode(x: int) returns (node: Node)
+            // Check x exists in DS
+            requires x in omDsSeq
+            ensures node.omValue == x
     }
 
     class OMDataStruct extends OMDataStructTrait {
@@ -123,32 +128,8 @@ module Collections {
             head := headNode;
             tail := tailNode;
             new;
-            // [0, 4, 8, 12] - labels
-            // [11, 46, 30, 4] - values
-            
-            var node0 := new Node(4, 11, 0);
-            var node1 := new Node(8, 46, 1);
-            var node2 := new Node(12, 30, 2);
-            var node3 := new Node(16, 4, 3);
-
-            headNode.next := node0;
-            node0.next := node1;
-            node1.next := node2;
-            node2.next := node3;
-            node3.next := tailNode;
-
-            tailNode.previous := node3;
-            node3.previous := node2;
-            node2.previous := node1;
-            node1.previous := node0;
-            node0.previous := headNode;
-
-            var dsSize: int := tailNode.previous.index + 1;
-            tailNode.omLabel := dsSize * (dsSize + 1);
-
-            omDsSeq := [node0.omValue, node1.omValue, node2.omValue, node3.omValue];
-            oldOmDsSeq := omDsSeq;
-            assert tail.previous.index+1 == |omDsSeq|;
+            omDsSeq := [];
+            oldOmDsSeq := [];
         }
 
         method addBefore(x: int, yNode: Node)
@@ -419,6 +400,63 @@ module Collections {
 
             omDsSeq := omDsSeq[..xNode.index] + omDsSeq[xNode.index+1..];
         }
+
+        method getXNode(x: int) returns (node: Node)
+            // Check x exists in DS
+            requires x in omDsSeq
+            ensures node.omValue == x
+        {
+            var iNode: Node := head.next;
+            while(iNode != tail)
+                invariant iNode == tail || iNode != tail
+                decreases iNode
+            {
+                if(iNode.omValue == x) {
+                    node := iNode;
+                    break;
+                }
+
+                iNode := iNode.next;
+            }
+
+            assert iNode.omValue == x && x == node.omValue;
+        }
+
+        // method reIndex(omDS: Node?)
+        //     modifies omDS
+        // {
+        //     var currentNode: Node? := omDS;
+        //     var index: int := 0;
+
+        //     while(currentNode != null)
+        //         decreases |omDsSeq| - index
+        //     {
+        //         currentNode.index := index;
+        //         index := index + 1;
+        //         currentNode := currentNode.next;
+        //     }
+        // }
+
+        // method relabel()
+        //     modifies omDS
+        // {
+        //     index := 0;
+        //     var newLabel: int, newPos := 0, 0;
+        //     while(index < omDS.Length)
+        //         invariant 0 <= index <= omDS.Length
+        //         decreases omDS.Length - index
+        //         modifies omDS
+        //     {
+        //         if(omDS[index] != null && newPos <= index) {
+        //             omDS[newPos] := new Node(newLabel, omDS[index].omValue);
+
+        //             newLabel := newLabel + currentNumElements;
+        //             newPos := newPos + 1;
+        //         }
+
+        //         index := index + 1;
+        //     }
+        // }
     }
     
 }
@@ -428,28 +466,54 @@ module Runner {
 
     method main()
     {
-        // var omDataStruct := new c.OMDataStruct(16);
+        var omDataStruct := new c.OMDataStruct();
 
-        // // [0, 4, 8, 12] - labels
-        // // [11, 46, 30, 4] - values
-        // var node0 := new c.Node(0, 11, 0);
-        // var node1 := new c.Node(4, 46, 1);
-        // var node2 := new c.Node(8, 30, 2);
-        // var node3 := new c.Node(12, 4, 3);
+        // [] - labels | [] - values
 
-        // omDataStruct.omDS := node0;
-        // node0.next := node1;
-        // node1.next := node2;
-        // node2.next := node3;
-        // node3.next := null;
+        omDataStruct.add(4);
 
-        // node3.previous := node2;
-        // node2.previous := node1;
-        // node1.previous := node0;
-        // node0.previous := null;
+        // [1] - labels | [4] - values
 
-        // omDataStruct.omDsSeq := [node0, node1, node2, node3];
+        var node4: c.Node := omDataStruct.getXNode(4);
+        omDataStruct.addBefore(46, node4);
 
-        // omDataStruct.addBefore(8, node2);
+        // [2, 4] - labels | [46, 4] - values
+
+        var node46: c.Node := omDataStruct.getXNode(46);
+        omDataStruct.addAfter(30, node46);
+
+        // [3, 6, 9] - labels | [46, 30, 4] - values
+
+        var prependValSet: set<int> := {11};
+        omDataStruct.prepend(prependValSet);
+
+        // [4, 8, 12, 16] - labels | [11, 46, 30, 4] - values
+
+        var appendValSet: set<int> := {89};
+        omDataStruct.append(appendValSet);
+
+        // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+
+        var exist30: bool := omDataStruct.element(30);
+        assert exist30; // true
+
+        var exist50: bool := omDataStruct.element(50);
+        assert !exist50; // false
+
+        var isBefore46: bool := omDataStruct.before(node46, node4);
+        assert isBefore46; // true
+
+        var node11: c.Node := omDataStruct.getXNode(11);
+        var isBefore11: bool := omDataStruct.before(node46, node11);
+        assert !isBefore11; // false
+
+        // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+
+        omDataStruct.remove(node4);
+
+        // [4, 8, 12, 16] - labels | [11, 46, 30, 89] - values
+
+        var exist4: bool := omDataStruct.element(4);
+        assert !exist4; // false
     }
 }
