@@ -163,8 +163,7 @@ module Collections {
             assert tail.previous.index+1 == |omDsSeq|;
             assert omDsSeq[yNode.index-1] == x;
 
-            // TODO:
-            // reIndex();
+            reIndex();
         }
 
         method addAfter(x: int, yNode: Node)
@@ -198,8 +197,7 @@ module Collections {
             assert tail.previous.index+1 == |omDsSeq|;
             assert omDsSeq[yNode.index+1] == x;
 
-            // TODO:
-            // reIndex();
+            reIndex();
         }
 
         // Inserts x at the start of the linked list
@@ -230,9 +228,8 @@ module Collections {
             omDsSeq := [x] + omDsSeq[..];
             assert tail.previous.index+1 == |omDsSeq|;
             assert omDsSeq[0] == x;
-
-            // TODO:
-            // reIndex();
+            
+            reIndex();
         }
 
         method element(x: int) returns (exist: bool)
@@ -313,8 +310,7 @@ module Collections {
                     var labelGap: int := tail.omLabel - prevNode.omLabel;
 
                     if(labelGap == 0) {
-                        // TODO:
-                        // relabel();
+                        relabel();
                     }
 
                     var valLabel: int := prevNode.omLabel + (labelGap / 2);
@@ -358,8 +354,7 @@ module Collections {
                     var labelGap: int := nextNode.omLabel - head.omLabel;
 
                     if(labelGap == 0) {
-                        // TODO:
-                        // relabel();
+                        relabel();
                     }
 
                     var valLabel: int := head.omLabel + (labelGap / 2);
@@ -393,9 +388,8 @@ module Collections {
 
                 nextNode.previous := prevNode;
                 prevNode.next := nextNode;
-
-                // TODO:
-                // reIndex();
+                
+                reIndex();
             }
 
             omDsSeq := omDsSeq[..xNode.index] + omDsSeq[xNode.index+1..];
@@ -422,41 +416,37 @@ module Collections {
             assert iNode.omValue == x && x == node.omValue;
         }
 
-        // method reIndex(omDS: Node?)
-        //     modifies omDS
-        // {
-        //     var currentNode: Node? := omDS;
-        //     var index: int := 0;
+        method reIndex()
+        {
+            var nextNode: Node? := head.next;
+            var index: int := 0;
 
-        //     while(currentNode != null)
-        //         decreases |omDsSeq| - index
-        //     {
-        //         currentNode.index := index;
-        //         index := index + 1;
-        //         currentNode := currentNode.next;
-        //     }
-        // }
+            while(nextNode != null && nextNode != tail)
+                decreases nextNode.next
+                modifies nextNode
+            {
+                nextNode.index := index;
+                index := index + 1;
+                nextNode := nextNode.next;
+            }
+        }
 
-        // method relabel()
-        //     modifies omDS
-        // {
-        //     index := 0;
-        //     var newLabel: int, newPos := 0, 0;
-        //     while(index < omDS.Length)
-        //         invariant 0 <= index <= omDS.Length
-        //         decreases omDS.Length - index
-        //         modifies omDS
-        //     {
-        //         if(omDS[index] != null && newPos <= index) {
-        //             omDS[newPos] := new Node(newLabel, omDS[index].omValue);
+        method relabel()
+        {
+            var index: int := 0;
+            var listSize: int := tail.previous.index+1;
+            var nextNode: Node? := head.next;
 
-        //             newLabel := newLabel + currentNumElements;
-        //             newPos := newPos + 1;
-        //         }
-
-        //         index := index + 1;
-        //     }
-        // }
+            while(nextNode != null && nextNode != tail)
+                decreases nextNode.next
+                modifies nextNode
+            {
+                nextNode.omLabel := listSize * (index + 1);
+                nextNode.index := index;
+                index := index + 1;
+                nextNode := nextNode.next;
+            }
+        }
     }
     
 }
