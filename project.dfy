@@ -61,14 +61,14 @@ module Collections {
             // Check x's position is greater than y's position
             ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [yNode.omValue, x] + scndSeq
 
-        // // Inserts x at the start of the linked list
-        // method add(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires x !in omDsSeq
-        //     // Check all the values are unique
-        //     requires checkUnique()
-        //     // Check x exists random position in DS
-        //     ensures x in omDsSeq
+        // Inserts x at the start of the linked list
+        method add(x: int)
+            // Check x doesn't exist in DS
+            requires x !in omDsSeq
+            // Check all the values are unique
+            requires checkUnique()
+            // Check x exists random position in DS
+            ensures x in omDsSeq
 
         // method element(x: int) returns (exist: bool)
         //     // At some position, if x exists then return true otherwise false
@@ -215,37 +215,36 @@ module Collections {
             reIndex();
         }
 
-        // // Inserts x at the start of the linked list
-        // method add(x: int)
-        //     // Check x doesn't exist in DS
-        //     requires x !in omDsSeq
-        //     // Check each value is unique
-        //     requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
-        //     // Check x exists random position in DS
-        //     ensures x in omDsSeq
-        //     modifies head, head.next
-        // {
-        //     // head.next always not null since it can be tail node in the worst case.
-        //     if(head.next != null) {
+        // Inserts x at the start of the linked list
+        method add(x: int)
+            // Check x doesn't exist in DS
+            requires x !in omDsSeq
+            // Check all the values are unique
+            requires checkUnique()
+            // Check x exists random position in DS
+            ensures x in omDsSeq
+        {
+            // head.next always not null since it can be tail node in the worst case.
+            if(head.next != null) {
 
-        //         var nextNode: Node := head.next;
+                var nextNode: Node := head.next;
 
-        //         var labelGap: int := nextNode.omLabel - head.omLabel;
-        //         var xLabel: int := head.omLabel + (labelGap / 2);
-        //         var xNode: Node := new Node(xLabel, x, 0);
+                var labelGap: int := nextNode.omLabel - head.omLabel;
+                var xLabel: int := head.omLabel + (labelGap / 2);
+                var xNode: Node := new Node(xLabel, x, 0);
 
-        //         xNode.previous := head;
-        //         xNode.next := nextNode;
-        //         nextNode.previous := xNode;
-        //         head.next := xNode;
-        //     }
+                xNode.previous := head;
+                xNode.next := nextNode;
+                nextNode.previous := xNode;
+                head.next := xNode;
+            }
 
-        //     omDsSeq := [x] + omDsSeq[..];
-        //     assert tail.previous.index+1 == |omDsSeq|;
-        //     assert omDsSeq[0] == x;
+            omDsSeq := [x] + omDsSeq[..];
+            assert tail.previous.index+1 == |omDsSeq|;
+            assert omDsSeq[0] == x;
             
-        //     reIndex();
-        // }
+            reIndex();
+        }
 
         // method element(x: int) returns (exist: bool)
         //     // At some position, if x exists then return true otherwise false
