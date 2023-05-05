@@ -51,15 +51,15 @@ module Collections {
             // Check x's position is less than y's position
             ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [x, yNode.omValue] + scndSeq
 
-        // method addAfter(x: int, yNode: Node)
-        //     // Check y exists in DS
-        //     requires yNode.omValue in omDsSeq
-        //     // Check x doesn't exist in DS
-        //     requires x !in omDsSeq
-        //     // Check all the values are unique
-        //     requires checkUnique()
-        //     // Check x's position is greater than y's position
-        //     ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [yNode.omValue, x] + scndSeq
+        method addAfter(x: int, yNode: Node)
+            // Check y exists in DS
+            requires yNode.omValue in omDsSeq
+            // Check x doesn't exist in DS
+            requires x !in omDsSeq
+            // Check all the values are unique
+            requires checkUnique()
+            // Check x's position is greater than y's position
+            ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [yNode.omValue, x] + scndSeq
 
         // // Inserts x at the start of the linked list
         // method add(x: int)
@@ -166,6 +166,7 @@ module Collections {
             if(yNode.previous != null) {
 
                 var labelGap: int := yNode.omLabel - yNode.previous.omLabel;
+                // TODO: Check xLabel exist or not then relabel
                 var xLabel: int := yNode.previous.omLabel + (labelGap / 2);
                 var xNode: Node := new Node(xLabel, x, yNode.index);
 
@@ -183,39 +184,36 @@ module Collections {
             reIndex();
         }
 
-        // method addAfter(x: int, yNode: Node)
-        //     // Check y exists in DS
-        //     requires yNode.omValue in omDsSeq
-        //     // Check x doesn't exist in DS
-        //     requires x !in omDsSeq
-        //     requires oldOmDsSeq == omDsSeq
-        //     // Check each value is unique
-        //     requires exists fstSeq, scndSeq, val :: omDsSeq == fstSeq + [val] + scndSeq && val !in fstSeq + scndSeq
-        //     // Check x's position is greater than y's position
-        //     ensures exists fstSeq, scndSeq :: oldOmDsSeq == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [x, yNode.omValue] + scndSeq
-        //     modifies yNode, yNode.next
-        // {
-        //     // yNode.next always not null since it can be tail node in the worst case.
-        //     if(yNode.next != null) {
-        //         assert oldOmDsSeq == omDsSeq;
+        method addAfter(x: int, yNode: Node)
+            // Check y exists in DS
+            requires yNode.omValue in omDsSeq
+            // Check x doesn't exist in DS
+            requires x !in omDsSeq
+            // Check all the values are unique
+            requires checkUnique()
+            // Check x's position is greater than y's position
+            ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [yNode.omValue, x] + scndSeq
+        {
+            // yNode.next always not null since it can be tail node in the worst case.
+            if(yNode.next != null) {
 
-        //         var labelGap: int := yNode.omLabel - yNode.next.omLabel;
-        //         var xLabel: int := yNode.next.omLabel + (labelGap / 2);
-        //         var xNode: Node := new Node(xLabel, x, yNode.index+1);
+                var labelGap: int := yNode.omLabel - yNode.next.omLabel;
+                var xLabel: int := yNode.next.omLabel + (labelGap / 2);
+                var xNode: Node := new Node(xLabel, x, yNode.index+1);
 
-        //         var nextNode: Node := yNode.next;
-        //         xNode.previous := yNode;
-        //         xNode.next := nextNode;
-        //         nextNode.previous := xNode;
-        //         yNode.next := xNode;
-        //     }
+                var nextNode: Node := yNode.next;
+                xNode.previous := yNode;
+                xNode.next := nextNode;
+                nextNode.previous := xNode;
+                yNode.next := xNode;
+            }
 
-        //     omDsSeq := omDsSeq[..yNode.index+1] + [x] + omDsSeq[yNode.index+1..];
-        //     assert tail.previous.index+1 == |omDsSeq|;
-        //     assert omDsSeq[yNode.index+1] == x;
+            omDsSeq := omDsSeq[..yNode.index+1] + [x] + omDsSeq[yNode.index+1..];
+            assert tail.previous.index+1 == |omDsSeq|;
+            assert omDsSeq[yNode.index+1] == x;
 
-        //     reIndex();
-        // }
+            reIndex();
+        }
 
         // // Inserts x at the start of the linked list
         // method add(x: int)
