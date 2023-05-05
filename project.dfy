@@ -70,9 +70,9 @@ module Collections {
             // Check x exists random position in DS
             ensures x in omDsSeq
 
-        // method element(x: int) returns (exist: bool)
-        //     // At some position, if x exists then return true otherwise false
-        //     ensures exist == (x in omDsSeq)
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == (x in omDsSeq)
 
         // method before(xNode: Node, yNode: Node) returns (isBefore: bool)
         //     // Checks x and y are different values
@@ -246,26 +246,25 @@ module Collections {
             reIndex();
         }
 
-        // method element(x: int) returns (exist: bool)
-        //     // At some position, if x exists then return true otherwise false
-        //     ensures exist == (x in omDsSeq)
-        // {
-        //     exist := false;
-        //     var iNode: Node? := head.next;
-        //     while(iNode != null && iNode != tail)
-        //         invariant iNode == null || (iNode == tail || iNode != tail)
-        //         decreases iNode
-        //     {
-        //         if(iNode.omValue == x) {
-        //             exist := true;
-        //             break;
-        //         }
+        method element(x: int) returns (exist: bool)
+            // At some position, if x exists then return true otherwise false
+            ensures exist == (x in omDsSeq)
+        {
+            exist := false;
+            var iNode: Node? := head.next;
+            while(iNode != tail)
+                decreases getLength() - getCurrentLength(iNode)
+            {
+                if(iNode.omValue == x) {
+                    exist := true;
+                    break;
+                }
 
-        //         iNode := iNode.next;
-        //     }
+                iNode := iNode.next;
+            }
 
-        //     assert (x in omDsSeq) && exist;
-        // }
+            assert (x in omDsSeq) && exist;
+        }
 
         // method before(xNode: Node, yNode: Node) returns (isBefore: bool)
         //     // Checks x and y are different values
