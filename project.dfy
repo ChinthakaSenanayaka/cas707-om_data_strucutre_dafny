@@ -5,7 +5,7 @@
 module Collections {
     
     trait INode {
-        var omLabel: int;
+        var omLabel: nat;
         var omValue: int;
     }
 
@@ -21,7 +21,7 @@ module Collections {
         // Sets are used to decrease since set substraction allows
         ghost var nodeSet: set<Node>;
 
-        constructor (omLbl: int, omVal: int, idx: int)
+        constructor (omLbl: nat, omVal: int, idx: int)
             ensures omLabel == omLbl && omValue == omVal && index == idx
         {
             new;
@@ -36,7 +36,7 @@ module Collections {
             decreases nodeSet
         {
             this in nodeSet && 
-            (next != null ==> next.nodeSet <= nodeSet && this !in next.nodeSet && next.isAcyclic())
+            (next != null ==> next.nodeSet < nodeSet && this !in next.nodeSet && next.isAcyclic())
         }
     }
 
@@ -197,7 +197,7 @@ module Collections {
                 prevNode.next := xNode;
                 yNode.previous := xNode;
 
-                xNode.nodeSet := prevNode.nodeSet + {xNode};
+                xNode.nodeSet := {xNode} + yNode.nodeSet;
             }
 
             omDsSeq := omDsSeq[..yNode.index] + [x] + omDsSeq[yNode.index..];
@@ -230,7 +230,8 @@ module Collections {
                 nextNode.previous := xNode;
                 yNode.next := xNode;
 
-                xNode.nodeSet := nextNode.nodeSet + {xNode};
+                xNode.nodeSet := {xNode} + nextNode.nodeSet;
+                yNode.nodeSet := {yNode} + xNode.nodeSet;
             }
 
             omDsSeq := omDsSeq[..yNode.index+1] + [x] + omDsSeq[yNode.index+1..];
@@ -264,7 +265,7 @@ module Collections {
                 nextNode.previous := xNode;
                 head.next := xNode;
 
-                xNode.nodeSet := {xNode};
+                xNode.nodeSet := {xNode} + nextNode.nodeSet;
             }
 
             omDsSeq := [x] + omDsSeq[..];
@@ -281,7 +282,8 @@ module Collections {
             exist := false;
             var iNode: Node? := head.next;
             while(iNode != null && iNode != tail)
-                decreases getLength() - getCurrentLength(iNode)
+                invariant iNode == null || iNode != null
+                decreases if iNode == null || iNode == tail then {} else iNode.nodeSet
             {
                 if(iNode.omValue == x) {
                     exist := true;
@@ -312,18 +314,18 @@ module Collections {
                 isBefore := false;
             }
             
-            ghost var xIndex: int := findXIndex(xNode.omValue, head.next);
-            ghost var yIndex: int := findXIndex(yNode.omValue, head.next);
-            assert xIndex < yIndex;
+            // ghost var xIndex: int := findXIndex(xNode.omValue, head.next);
+            // ghost var yIndex: int := findXIndex(yNode.omValue, head.next);
+            // assert xIndex < yIndex;
         }
 
-        function findXIndex(x: int, node: Node?): int
-            decreases node.next == tail
-        {
-            if node == null then -1 else
-            if node == tail then -1 else
-            if node.omValue == x then node.index else findXIndex(x, node.next)
-        }
+        // function findXIndex(x: int, node: Node?): int
+        //     decreases node.
+        // {
+        //     if node == null then -1 else
+        //     if node == tail then -1 else
+        //     if node.omValue == x then node.index else findXIndex(x, node.next)
+        // }
 
         // Source: https://homepage.cs.uiowa.edu/~tinelli/classes/181/Spring11/Tools/Dafny/Examples/square-root.dfy
         method getSqRt(n: int) returns (r : int)
@@ -348,30 +350,42 @@ module Collections {
             ensures omDsSeq == old(omDsSeq) + [x]
             // Check all the values are unique. This is an additional check
             ensures checkUnique()
+            modifies tail, tail.previous
         {
             var prevNode: Node? := tail.previous;
-            if(prevNode != null && prevNode != head) {
+            if(prevNode != null) {
 
-                var sqrtLbl: int := getSqRt(prevNode.omLabel);
-                var tailLbl: int := sqrtLbl * (sqrtLbl + 1);
+                // This check should be idealy optional but needed for 1st label as 1 since head is default 0
+                if(prevNode != head) {
 
-                var labelGap: int := tailLbl - prevNode.omLabel;
+                    var sqrtLbl: int := getSqRt(prevNode.omLabel);
+                    var tailLbl: int := sqrtLbl * (sqrtLbl + 1);
 
-                var xLabel: int := prevNode.omLabel + (labelGap-1 / 2);
-                var xNode: Node := new Node(xLabel, x, prevNode.index+1);
+                    var labelGap: int := tailLbl - prevNode.omLabel;
 
-                xNode.previous := prevNode;
-                xNode.next := tail;
-                prevNode.next := xNode;
-                tail.previous := xNode;
+                    var xLabel: int := prevNode.omLabel + (labelGap-1 / 2);
+                    var xNode: Node := new Node(xLabel, x, prevNode.index+1);
 
-            } else {
-                var xNode: Node := new Node(1, x, 0);
+                    xNode.previous := prevNode;
+                    xNode.next := tail;
+                    prevNode.next := xNode;
+                    tail.previous := xNode;
 
-                xNode.previous := head;
-                xNode.next := tail;
-                head.next := xNode;
-                tail.previous := xNode;
+                    xNode.nodeSet := {xNode};
+                    prevNode.nodeSet := {prevNode} + xNode.nodeSet;
+
+                } else {
+
+                    var xNode: Node := new Node(1, x, 0);
+
+                    xNode.previous := head;
+                    xNode.next := tail;
+                    head.next := xNode;
+                    tail.previous := xNode;
+
+                    xNode.nodeSet := {xNode};
+                }
+
             }
 
             omDsSeq := omDsSeq[..] + [x];
@@ -386,26 +400,37 @@ module Collections {
             ensures omDsSeq == [x] + old(omDsSeq)
             // Check all the values are unique. This is an additional check
             ensures checkUnique()
+            modifies head, head.next
         {
             var nextNode: Node? := head.next;
-            if(nextNode != null && nextNode != tail) {
-                var labelGap: int := nextNode.omLabel - 0;
+            if(nextNode != null) {
 
-                var xLabel: int := 0 + (labelGap-1 / 2);
-                var xNode: Node := new Node(xLabel, x, 0);
+                if(nextNode != tail) {
+                    
+                    var labelGap: int := nextNode.omLabel - 0;
 
-                xNode.previous := head;
-                xNode.next := nextNode;
-                nextNode.previous := xNode;
-                head.next := xNode;
+                    var xLabel: int := 0 + (labelGap-1 / 2);
+                    var xNode: Node := new Node(xLabel, x, 0);
 
-            } else {
-                var xNode: Node := new Node(1, x, 0);
+                    xNode.previous := head;
+                    xNode.next := nextNode;
+                    nextNode.previous := xNode;
+                    head.next := xNode;
 
-                xNode.previous := head;
-                xNode.next := tail;
-                head.next := xNode;
-                tail.previous := xNode;
+                    xNode.nodeSet := {xNode} + nextNode.nodeSet;
+
+                } else {
+
+                    var xNode: Node := new Node(1, x, 0);
+
+                    xNode.previous := head;
+                    xNode.next := tail;
+                    head.next := xNode;
+                    tail.previous := xNode;
+
+                    xNode.nodeSet := {xNode};
+                }
+
             }
 
             omDsSeq := [x] + omDsSeq[..];
