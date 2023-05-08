@@ -17,6 +17,10 @@ module Collections {
         // But used for verification only.
         var index: int;
 
+        // Customized from Dafny MS research https://www.youtube.com/watch?v=kbJO-U9Wp-s
+        // Sets are used to decrease since set substraction allows
+        ghost var nodeSet: set<Node>;
+
         constructor (omLbl: int, omVal: int, idx: int)
             ensures omLabel == omLbl && omValue == omVal && index == idx
         {
@@ -25,6 +29,14 @@ module Collections {
             omValue := omVal;
 
             index := idx;
+        }
+
+        ghost predicate isAcyclic()
+            reads *
+            decreases nodeSet
+        {
+            this in nodeSet && 
+            (next != null ==> next.nodeSet <= nodeSet && this !in next.nodeSet && next.isAcyclic())
         }
     }
 
@@ -37,8 +49,8 @@ module Collections {
 
         // Check all the values are unique
         ghost predicate checkUnique()
-            // NOTE: Weird but try uncommenting this, neither way is working.
-            reads omDsSeq
+            // NOTE: Weird but try commenting this, neither way is working.
+            reads *
         {
             forall i, j :: 0 <= i < j < |omDsSeq| && omDsSeq[i] != omDsSeq[j]
             // forall fstSeq, scndSeq, x :: omDsSeq == fstSeq + [x] + scndSeq && x !in fstSeq + scndSeq
@@ -140,19 +152,24 @@ module Collections {
             omDsSeq := [];
         }
 
-        function getLength(): int
+        ghost function getLength(): int
             // NOTE: Doesn't resolve the read access error though error says so.
             // reads tail
+            reads *
         {
-            if tail.previous == head then 0 else tail.previous.index + 1
+            if tail.previous == null then 0 else
+            if tail.previous == head then 0 else |tail.previous.nodeSet|
         }
 
         // To be used in decrease clause in while loops
         // NOTE: Nodes can't be used since the recursive call termination by tail node can't be proved.
-        function getCurrentLength(node: Node): int
-            reads node.next
+        ghost function getCurrentLength(node: Node?): int
+            requires node == null || node.isAcyclic()
+            decreases if node == null then {} else node.nodeSet
+            reads *
         {
-            if node.next == tail then 0 else 1 + getCurrentLength(node.next)
+            if node == null then 0 else
+            if node.next == tail then |node.nodeSet| else getCurrentLength(node.next)
         }
 
         method addBefore(x: int, yNode: Node)
@@ -227,6 +244,7 @@ module Collections {
             requires checkUnique()
             // Check x exists random position in DS
             ensures x in omDsSeq
+            modifies head, head.next
         {
             // head.next always not null since it can be tail node in the worst case.
             if(head.next != null) {
@@ -256,7 +274,7 @@ module Collections {
         {
             exist := false;
             var iNode: Node? := head.next;
-            while(iNode != tail)
+            while(iNode != null && iNode != tail)
                 decreases getLength() - getCurrentLength(iNode)
             {
                 if(iNode.omValue == x) {
@@ -288,18 +306,18 @@ module Collections {
                 isBefore := false;
             }
             
-            // ghost var xIndex: int := findXIndex(xNode.omValue, head.next);
-            // ghost var yIndex: int := findXIndex(yNode.omValue, head.next);
-            // assert xIndex < yIndex;
+            ghost var xIndex: int := findXIndex(xNode.omValue, head.next);
+            ghost var yIndex: int := findXIndex(yNode.omValue, head.next);
+            assert xIndex < yIndex;
         }
 
-        // // function findXIndex(x: int, node: Node?): int
-        // //     decreases node == null || node.next == tail
-        // // {
-        // //     if node == null then -1 else
-        // //     if node == tail then -1 else
-        // //     if node.omValue == x then node.index else findXIndex(x, node.next)
-        // // }
+        function findXIndex(x: int, node: Node?): int
+            decreases node.next == tail
+        {
+            if node == null then -1 else
+            if node == tail then -1 else
+            if node.omValue == x then node.index else findXIndex(x, node.next)
+        }
 
         // Source: https://homepage.cs.uiowa.edu/~tinelli/classes/181/Spring11/Tools/Dafny/Examples/square-root.dfy
         method getSqRt(n: int) returns (r : int)
@@ -315,7 +333,6 @@ module Collections {
             }
         }
 
-
         method append(x: int)
             // Check x doesn't exist in DS
             requires x !in omDsSeq
@@ -326,8 +343,8 @@ module Collections {
             // Check all the values are unique. This is an additional check
             ensures checkUnique()
         {
-            var prevNode: Node := tail.previous;
-            if(prevNode != head) {
+            var prevNode: Node? := tail.previous;
+            if(prevNode != null && prevNode != head) {
 
                 var sqrtLbl: int := getSqRt(prevNode.omLabel);
                 var tailLbl: int := sqrtLbl * (sqrtLbl + 1);
@@ -364,8 +381,8 @@ module Collections {
             // Check all the values are unique. This is an additional check
             ensures checkUnique()
         {
-            var nextNode: Node := head.next;
-            if(nextNode != tail) {
+            var nextNode: Node? := head.next;
+            if(nextNode != null && nextNode != tail) {
                 var labelGap: int := nextNode.omLabel - 0;
 
                 var xLabel: int := 0 + (labelGap-1 / 2);
@@ -413,7 +430,7 @@ module Collections {
             ensures node.omValue == x
         {
             var iNode: Node? := head.next;
-            while(iNode != tail)
+            while(iNode != null && iNode != tail)
                 decreases getLength() - getCurrentLength(iNode)
             {
                 if(iNode.omValue == x) {
@@ -465,56 +482,54 @@ module Collections {
 module Runner {
     // import c = Collections
 
-    method main()
-    {
-        // var omDataStruct := new c.OMDataStruct();
+    // method main()
+    // {
+    //     var omDataStruct := new c.OMDataStruct();
 
-        // // [] - labels | [] - values
+    //     // [] - labels | [] - values
 
-        // omDataStruct.add(4);
+    //     omDataStruct.add(4);
 
-        // // [1] - labels | [4] - values
+    //     // [1] - labels | [4] - values
 
-        // var node4: c.Node := omDataStruct.getXNode(4);
-        // omDataStruct.addBefore(46, node4);
+    //     var node4: c.Node := omDataStruct.getXNode(4);
+    //     omDataStruct.addBefore(46, node4);
 
-        // // [2, 4] - labels | [46, 4] - values
+    //     // [2, 4] - labels | [46, 4] - values
 
-        // var node46: c.Node := omDataStruct.getXNode(46);
-        // omDataStruct.addAfter(30, node46);
+    //     var node46: c.Node := omDataStruct.getXNode(46);
+    //     omDataStruct.addAfter(30, node46);
 
-        // // [3, 6, 9] - labels | [46, 30, 4] - values
+    //     // [2, 3, 4] - labels | [46, 30, 4] - values
 
-        // var prependValSet: set<int> := {11};
-        // omDataStruct.prepend(prependValSet);
+    //     omDataStruct.prepend(11);
 
-        // // [4, 8, 12, 16] - labels | [11, 46, 30, 4] - values
+    //     // [1, 2, 3, 4] - labels | [11, 46, 30, 4] - values
 
-        // var appendValSet: set<int> := {89};
-        // omDataStruct.append(appendValSet);
+    //     omDataStruct.append(89);
 
-        // // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+    //     // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
 
-        // var exist30: bool := omDataStruct.element(30);
-        // assert exist30; // true
+    //     var exist30: bool := omDataStruct.element(30);
+    //     assert exist30; // true
 
-        // var exist50: bool := omDataStruct.element(50);
-        // assert !exist50; // false
+    //     var exist50: bool := omDataStruct.element(50);
+    //     assert !exist50; // false
 
-        // var isBefore46: bool := omDataStruct.before(node46, node4);
-        // assert isBefore46; // true
+    //     var isBefore46: bool := omDataStruct.before(node46, node4);
+    //     assert isBefore46; // true
 
-        // var node11: c.Node := omDataStruct.getXNode(11);
-        // var isBefore11: bool := omDataStruct.before(node46, node11);
-        // assert !isBefore11; // false
+    //     var node11: c.Node := omDataStruct.getXNode(11);
+    //     var isBefore11: bool := omDataStruct.before(node46, node11);
+    //     assert !isBefore11; // false
 
-        // // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+    //     // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
 
-        // omDataStruct.remove(node4);
+    //     omDataStruct.remove(node4);
 
-        // // [4, 8, 12, 16] - labels | [11, 46, 30, 89] - values
+    //     // [5, 10, 15, 25] - labels | [11, 46, 30, 89] - values
 
-        // var exist4: bool := omDataStruct.element(4);
-        // assert !exist4; // false
-    }
+    //     var exist4: bool := omDataStruct.element(4);
+    //     assert !exist4; // false
+    // }
 }
