@@ -196,6 +196,8 @@ module Collections {
                 xNode.next := yNode;
                 prevNode.next := xNode;
                 yNode.previous := xNode;
+
+                xNode.nodeSet := prevNode.nodeSet + {xNode};
             }
 
             omDsSeq := omDsSeq[..yNode.index] + [x] + omDsSeq[yNode.index..];
@@ -227,6 +229,8 @@ module Collections {
                 xNode.next := nextNode;
                 nextNode.previous := xNode;
                 yNode.next := xNode;
+
+                xNode.nodeSet := nextNode.nodeSet + {xNode};
             }
 
             omDsSeq := omDsSeq[..yNode.index+1] + [x] + omDsSeq[yNode.index+1..];
@@ -259,6 +263,8 @@ module Collections {
                 xNode.next := nextNode;
                 nextNode.previous := xNode;
                 head.next := xNode;
+
+                xNode.nodeSet := {xNode};
             }
 
             omDsSeq := [x] + omDsSeq[..];
