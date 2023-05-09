@@ -154,11 +154,12 @@ module Collections {
 
         ghost function getLength(): int
             // NOTE: Doesn't resolve the read access error though error says so.
-            // reads tail
+            // reads head
             reads *
         {
-            if tail.previous == null then 0 else
-            if tail.previous == head then 0 else |tail.previous.nodeSet|
+            // Null check is just to escape Node?
+            if head.next == null then 0 else
+            if head.next == tail then 0 else |head.next.nodeSet|
         }
 
         // To be used in decrease clause in while loops
@@ -169,7 +170,7 @@ module Collections {
             reads *
         {
             if node == null then 0 else
-            if node.next == tail then |node.nodeSet| else getCurrentLength(node.next)
+            if node == tail then 0 else 1 + getCurrentLength(node.next)
         }
 
         method addBefore(x: int, yNode: Node)
@@ -181,6 +182,7 @@ module Collections {
             requires checkUnique()
             // Check x's position is less than y's position
             ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [x, yNode.omValue] + scndSeq
+            ensures head.isAcyclic()
             modifies yNode, yNode.previous
         {
             // yNode.previous always not null since it can be head node in the worst case.
@@ -216,6 +218,7 @@ module Collections {
             requires checkUnique()
             // Check x's position is greater than y's position
             ensures exists fstSeq, scndSeq :: old(omDsSeq) == fstSeq + [yNode.omValue] + scndSeq && omDsSeq == fstSeq + [yNode.omValue, x] + scndSeq
+            ensures head.isAcyclic()
         {
             // yNode.next always not null since it can be tail node in the worst case.
             if(yNode.next != null) {
@@ -249,6 +252,7 @@ module Collections {
             requires checkUnique()
             // Check x exists random position in DS
             ensures x in omDsSeq
+            ensures head.isAcyclic()
             modifies head, head.next
         {
             // head.next always not null since it can be tail node in the worst case.
@@ -276,24 +280,31 @@ module Collections {
         }
 
         method element(x: int) returns (exist: bool)
+            // Can't remove requires head.isAcyclic() though it's not coming from trait
+            requires head.isAcyclic()
+            ensures head.isAcyclic()
             // At some position, if x exists then return true otherwise false
             ensures exist == (x in omDsSeq)
         {
+
             exist := false;
             var iNode: Node? := head.next;
             while(iNode != null && iNode != tail)
-                invariant iNode == null || iNode != null
-                decreases if iNode == null || iNode == tail then {} else iNode.nodeSet
+                invariant if iNode != null then iNode.isAcyclic() else iNode == null
+                decreases getCurrentLength(iNode)
             {
+                assert iNode in iNode.nodeSet;
+
                 if(iNode.omValue == x) {
                     exist := true;
                     break;
                 }
 
+                // NOTE: iNode.index is not visible as below to omDsSeq size. Have to add some way for that.
+                // assert x !in omDsSeq[..iNode.index];
+
                 iNode := iNode.next;
             }
-
-            assert (x in omDsSeq) && exist;
         }
 
         method before(xNode: Node, yNode: Node) returns (isBefore: bool)
@@ -320,7 +331,7 @@ module Collections {
         }
 
         // function findXIndex(x: int, node: Node?): int
-        //     decreases node.
+        //     decreases node
         // {
         //     if node == null then -1 else
         //     if node == tail then -1 else
@@ -400,6 +411,7 @@ module Collections {
             ensures omDsSeq == [x] + old(omDsSeq)
             // Check all the values are unique. This is an additional check
             ensures checkUnique()
+            // NOTE: try uncommenting, error is to add this to trait level
             modifies head, head.next
         {
             var nextNode: Node? := head.next;
@@ -449,6 +461,8 @@ module Collections {
 
             nextNode.previous := prevNode;
             prevNode.next := nextNode;
+
+            prevNode.nodeSet := {prevNode} + nextNode.nodeSet;
                 
             reIndex();
 
@@ -462,7 +476,7 @@ module Collections {
         {
             var iNode: Node? := head.next;
             while(iNode != null && iNode != tail)
-                decreases getLength() - getCurrentLength(iNode)
+                decreases if iNode == null || iNode == tail then 0 else |iNode.nodeSet| - |tail.previous.nodeSet|
             {
                 if(iNode.omValue == x) {
                     node := iNode;
@@ -511,56 +525,56 @@ module Collections {
 }
 
 module Runner {
-    // import c = Collections
+    import c = Collections
 
-    // method main()
-    // {
-    //     var omDataStruct := new c.OMDataStruct();
+    method main()
+    {
+        var omDataStruct := new c.OMDataStruct();
 
-    //     // [] - labels | [] - values
+        // [] - labels | [] - values
 
-    //     omDataStruct.add(4);
+        omDataStruct.add(4);
 
-    //     // [1] - labels | [4] - values
+        // [1] - labels | [4] - values
 
-    //     var node4: c.Node := omDataStruct.getXNode(4);
-    //     omDataStruct.addBefore(46, node4);
+        var node4: c.Node := omDataStruct.getXNode(4);
+        omDataStruct.addBefore(46, node4);
 
-    //     // [2, 4] - labels | [46, 4] - values
+        // [2, 4] - labels | [46, 4] - values
 
-    //     var node46: c.Node := omDataStruct.getXNode(46);
-    //     omDataStruct.addAfter(30, node46);
+        var node46: c.Node := omDataStruct.getXNode(46);
+        omDataStruct.addAfter(30, node46);
 
-    //     // [2, 3, 4] - labels | [46, 30, 4] - values
+        // [2, 3, 4] - labels | [46, 30, 4] - values
 
-    //     omDataStruct.prepend(11);
+        omDataStruct.prepend(11);
 
-    //     // [1, 2, 3, 4] - labels | [11, 46, 30, 4] - values
+        // [1, 2, 3, 4] - labels | [11, 46, 30, 4] - values
 
-    //     omDataStruct.append(89);
+        omDataStruct.append(89);
 
-    //     // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+        // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
 
-    //     var exist30: bool := omDataStruct.element(30);
-    //     assert exist30; // true
+        var exist30: bool := omDataStruct.element(30);
+        assert exist30; // true
 
-    //     var exist50: bool := omDataStruct.element(50);
-    //     assert !exist50; // false
+        var exist50: bool := omDataStruct.element(50);
+        assert !exist50; // false
 
-    //     var isBefore46: bool := omDataStruct.before(node46, node4);
-    //     assert isBefore46; // true
+        var isBefore46: bool := omDataStruct.before(node46, node4);
+        assert isBefore46; // true
 
-    //     var node11: c.Node := omDataStruct.getXNode(11);
-    //     var isBefore11: bool := omDataStruct.before(node46, node11);
-    //     assert !isBefore11; // false
+        var node11: c.Node := omDataStruct.getXNode(11);
+        var isBefore11: bool := omDataStruct.before(node46, node11);
+        assert !isBefore11; // false
 
-    //     // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
+        // [5, 10, 15, 20, 25] - labels | [11, 46, 30, 4, 89] - values
 
-    //     omDataStruct.remove(node4);
+        omDataStruct.remove(node4);
 
-    //     // [5, 10, 15, 25] - labels | [11, 46, 30, 89] - values
+        // [5, 10, 15, 25] - labels | [11, 46, 30, 89] - values
 
-    //     var exist4: bool := omDataStruct.element(4);
-    //     assert !exist4; // false
-    // }
+        var exist4: bool := omDataStruct.element(4);
+        assert !exist4; // false
+    }
 }
